@@ -37,7 +37,6 @@ usage()
 int
 main (int argc, char *argv[])
 {
-  int          c;
   extern int   optind;
   extern char *optarg;
   int32_t      xsize = 0, ysize = 0;
@@ -46,27 +45,30 @@ main (int argc, char *argv[])
   bool         keep_aspect = false;
   int          error = 0;
 
-  while((c = getopt(argc, argv, "x:y:af:V")) != EOF) {
-    switch(c) {
-    case 'a': keep_aspect = true;   break;
-    case 'x': xsize = atoi(optarg); break;
-    case 'y': ysize = atoi(optarg); break;
-    case 'f':
-      switch(*optarg) {
-      case 'b': filter = "Box"      ; break;
-      case 'l': filter = "Bilinear" ; break;
-      case 'B': filter = "B-Spline" ; break;
-      case 'c': filter = "Bicubic"  ; break;
-      case 'L': filter = "Lanczos3" ; break;
-      case 'm': filter = "Mitchell" ; break;
-      default: usage();
+  // process command line options.
+  {
+    int  c;
+    while ((c = getopt(argc, argv, "x:y:af:V")) != EOF) {
+      switch(c) {
+      case 'a': keep_aspect = true;   break;
+      case 'x': xsize = atoi(optarg); break;
+      case 'y': ysize = atoi(optarg); break;
+      case 'f':
+        switch(*optarg) {
+        case 'b': filter = "Box"      ; break;
+        case 'l': filter = "Bilinear" ; break;
+        case 'B': filter = "B-Spline" ; break;
+        case 'c': filter = "Bicubic"  ; break;
+        case 'L': filter = "Lanczos3" ; break;
+        case 'm': filter = "Mitchell" ; break;
+        default: usage();
+        }
+        break;
+      case '?': usage();
+      default:  usage();
       }
-      break;
-    case '?': usage();
-    default:  usage();
     }
   }
-
   if((argc - optind) != 2)
     usage();
   srcfile = argv[optind];
@@ -92,6 +94,34 @@ main (int argc, char *argv[])
   Image ras = resampler.resampleImage(src, xsize, ysize);
   PNGImage dst(ras.getWidth(), ras.getHeight(),
                ras.getNComps(), ras.getBPC(), ras.getPixelBytes());
+  // Copy colorspace related information
+  // There are currently no easy way to copy it.
+  {
+    enum png_colorspace_type_e type = src.getColorSpaceType();
+    dst.setColorSpaceType(type);
+    switch (type) {
+    case png_colorspace_iccp:
+      dst.setICCProfileName(src.getICCProfileName());
+      dst.setICCProfile(src.getICCProfile());
+      break;
+    case png_colorspace_srgb:
+      dst.setsRGBIntent(src.getsRGBIntent());
+      break;
+    case png_colorspace_calibrated:
+      {
+        std::vector<float> c = src.getChromaticity();
+        dst.setChromaticity(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+        dst.setGamma(src.getGamma());
+      }
+      break;
+    case png_colorspace_gamma_only:
+      dst.setGamma(src.getGamma());
+      break;
+    case png_colorspace_device:
+      // do nothing
+      break;
+    }
+  }
   error = dst.save(dstfile);
   if (error) {
     std::cerr << "Could not save destination image: " << dstfile << std::endl;
