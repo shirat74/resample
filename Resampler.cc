@@ -1,8 +1,6 @@
 // Based on public domain code by Dale Schumacher
 // THIS FILE IS IN THE PUBLIC DOMAIN
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
 
 #include <string>
@@ -68,28 +66,28 @@ float Resampler::Lanczos3_filter (float t)
   return ((t < 3.0) ? (sinc(t) * sinc( t / 3.0)) : 0.0);
 }
 
-// "bicubic" filter
-#define	MITCHELL_SUPPORT 2.0
-#define	B	(1.0 / 3.0)
-#define	C	(1.0 / 3.0)
+// Mitchell filter
+#define  MITCHELL_SUPPORT 2.0
+#define  B  (1.0 / 3.0)
+#define  C  (1.0 / 3.0)
 float Resampler::Mitchell_filter (float t)
 {
-	float tt = t*t;
-	if (t < 0)
+  float tt = t*t;
+  if (t < 0)
     t = -t;
-	if (t < 1.0) {
-		t = (((12.0 - 9.0 * B - 6.0 * C) * (t * tt))
-		    + ((-18.0 + 12.0 * B + 6.0 * C) * tt)
+  if (t < 1.0) {
+    t = (((12.0 - 9.0 * B - 6.0 * C) * (t * tt))
+        + ((-18.0 + 12.0 * B + 6.0 * C) * tt)
         + (6.0 - 2 * B));
-		return (t / 6.0);
-	} else if (t < 2.0) {
-		t = (((-1.0 * B - 6.0 * C) * (t * tt))
-		    + ((6.0 * B + 30.0 * C) * tt)
-		    + ((-12.0 * B - 48.0 * C) * t)
-		    + (8.0 * B + 24 * C));
-		return (t / 6.0);
-	}
-	return 0.0;
+    return (t / 6.0);
+  } else if (t < 2.0) {
+    t = (((-1.0 * B - 6.0 * C) * (t * tt))
+        + ((6.0 * B + 30.0 * C) * tt)
+        + ((-12.0 * B - 48.0 * C) * t)
+        + (8.0 * B + 24 * C));
+    return (t / 6.0);
+  }
+  return 0.0;
 }
 #undef B
 #undef C
