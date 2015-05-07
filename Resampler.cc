@@ -5,13 +5,12 @@
 
 #include <string>
 #include <vector>
-#include <cassert>
 
 #include "Resampler.hh"
 
 //
 // Interpolaion kernels: Box (Nearest Neighbor), Bilinear, B-spline,
-//                       Bicubic, Lanczos, Mitchell
+//                       Bicubic, Lanczos3, Mitchell
 //
 #define BOX_SUPPORT 0.5
 float Resampler::box_filter (float t)
@@ -92,7 +91,7 @@ float Resampler::Mitchell_filter (float t)
 #undef B
 #undef C
 
-const struct filterList Resampler::filters[] = {
+const struct filterItem Resampler::filters[] = {
   {"Box",       Resampler::box_filter,      BOX_SUPPORT},
   {"Bilinear",  Resampler::bilinear_filter, BILINEAR_SUPPORT},
   {"B-spline",  Resampler::B_spline_filter, B_SPLINE_SUPPORT},
@@ -127,14 +126,14 @@ Resampler::~Resampler ()
 }
 
 // Calculate how much sorrounding pixels contribute
-std::vector<ContribList>
+void
 Resampler::setupContributorForDownsample (float   scale,
                                           int32_t dstSize,
                                           int32_t boundary)
 {
   float supportSize = support / scale;
 
-  std::vector<ContribList> contributor(dstSize);
+  contributor.resize(dstSize);
 
   for (int32_t i = 0; i < dstSize; i++) {
     contributor[i].n = 0;
@@ -161,16 +160,14 @@ Resampler::setupContributorForDownsample (float   scale,
       contributor[i].p[k].weight = weight; // weight
     }
   }
-
-  return contributor;
 }
 
-std::vector<ContribList>
+void
 Resampler::setupContributorForUpsample (float   scale,
                                         int32_t dstSize,
                                         int32_t boundary)
 {
-  std::vector<ContribList> contributor(dstSize);
+  contributor.resize(dstSize);
 
   for (int32_t i = 0; i < dstSize; i++) {
     contributor[i].n = 0;
@@ -193,13 +190,11 @@ Resampler::setupContributorForUpsample (float   scale,
       contributor[i].p[k].weight = weight;
     }
   }
-
-  return contributor;
 }
 
 #define MAP_IN_RANGE(A,L,H) ((A) <= (L) ? (L) : (A) <= (H) ? (A) : (H))
 void
-Resampler::resampleX (Image& dst, Image& src) const
+Resampler::resampleX (Image& dst, const Image& src) const
 {
   for (int32_t k = 0; k < dst.getHeight(); k++) {
     for (int32_t i = 0; i < dst.getWidth(); i++) {
@@ -219,7 +214,7 @@ Resampler::resampleX (Image& dst, Image& src) const
 }
 
 void
-Resampler::resampleY (Image& dst, Image& src) const
+Resampler::resampleY (Image& dst, const Image& src) const
 {
   for (int32_t k = 0; k < dst.getWidth(); k++) {
     for (int32_t i = 0; i < dst.getHeight(); i++) {
@@ -239,7 +234,7 @@ Resampler::resampleY (Image& dst, Image& src) const
 }
 
 Image
-Resampler::resampleImage (Image& src, float xsize, float ysize)
+Resampler::resampleImage (const Image& src, float xsize, float ysize)
 {
   float xScale, yScale;
 
@@ -250,14 +245,16 @@ Resampler::resampleImage (Image& src, float xsize, float ysize)
 
   // create intermediate image to hold horizontal zoom
   Image tmp(dst.getWidth(), src.getHeight(), src.getNComps(), src.getBPC());
-  contributor = xScale < 1.0 ?
-        setupContributorForDownsample(xScale, dst.getWidth(), src.getWidth()) :
-        setupContributorForUpsample  (xScale, dst.getWidth(), src.getWidth());
+  if (xScale < 1.0)
+    setupContributorForDownsample(xScale, dst.getWidth(), src.getWidth());
+  else
+    setupContributorForUpsample  (xScale, dst.getWidth(), src.getWidth());
   resampleX(tmp, src);
 
-  contributor = yScale < 1.0 ?
-      setupContributorForDownsample(yScale, dst.getHeight(), src.getHeight()) :
-      setupContributorForUpsample  (yScale, dst.getHeight(), src.getHeight());
+  if (yScale < 1.0)
+    setupContributorForDownsample(yScale, dst.getHeight(), src.getHeight());
+  else
+    setupContributorForUpsample  (yScale, dst.getHeight(), src.getHeight());
   resampleY(dst, tmp);
 
   return  dst;

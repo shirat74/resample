@@ -20,7 +20,7 @@ typedef struct
   std::vector<Contrib> p;
 } ContribList;
 
-struct filterList
+struct filterItem
 {
   const char name[32];
   float (*func)(float);
@@ -34,28 +34,28 @@ public:
   Resampler (const std::string& filter);
   ~Resampler();
 
-  Image resampleImage(Image& src, float xsize, float ysize);
+  Image resampleImage(const Image& src, float xsize, float ysize);
 
 private:
   float (*filter_fn)(float);
   float support;
   std::vector<ContribList> contributor;
 
-  void resampleX(Image& dst, Image& src) const;
-  void resampleY(Image& dst, Image& src) const;
-  std::vector<ContribList> setupContributorForDownsample (float scale,
-                                       int32_t dstSize, int32_t boundary);
-  std::vector<ContribList> setupContributorForUpsample   (float scale,
-                                       int32_t dstSize, int32_t boundary);
+  void resampleX(Image& dst, const Image& src) const;
+  void resampleY(Image& dst, const Image& src) const;
+  void setupContributorForDownsample (float scale,
+                                      int32_t dstSize, int32_t boundary);
+  void setupContributorForUpsample   (float scale,
+                                      int32_t dstSize, int32_t boundary);
 
   static float box_filter(float);
   static float bilinear_filter(float);
   static float B_spline_filter(float);
-  static float bicubic_filter(float);
+  static float bicubic_filter(float) ;
   static float Lanczos3_filter(float);
   static float Mitchell_filter(float);
 
-  static const struct filterList filters[];
+  static const struct filterItem filters[];
   static const int NUM_FILTERS;
 };
 

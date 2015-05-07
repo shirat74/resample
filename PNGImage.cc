@@ -34,16 +34,16 @@ PNGImage::PNGImage (const std::string filename) : Image(0, 0, 0, 0) // dummy
 
   fp = fopen(filename.c_str(), FOPEN_RBIN_MODE);
   if(!fp) {
-    std::cerr << "Could not open source image: " << filename << std::endl;
+    isValid = false;
     return;
   }
 
   png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
   if (png_ptr == NULL ||
       (png_info_ptr = png_create_info_struct(png_ptr)) == NULL) {
-    std::cerr << "Creating Libpng read/info struct failed." << std::endl;
     if (png_ptr)
       png_destroy_read_struct(&png_ptr, NULL, NULL);
+    isValid = false;
     return;
   }
 
@@ -64,7 +64,7 @@ PNGImage::PNGImage (const std::string filename) : Image(0, 0, 0, 0) // dummy
   nComps     = png_get_channels    (png_ptr, png_info_ptr);
 
   if (color_type == PNG_COLOR_TYPE_PALETTE) {
-    std::cerr << "Pallete color unsupported." << std::endl;
+    isValid = false;
     return;
   }
   png_read_update_info(png_ptr, png_info_ptr);
@@ -159,15 +159,12 @@ PNGImage::save (const std::string filename) const
   png_byte    color_type = PNG_COLOR_TYPE_RGB;
 
   fp = fopen(filename.c_str(), FOPEN_WBIN_MODE);
-  if(!fp) {
-    std::cerr << "Could not open file for output: " << filename << std::endl;
+  if(!fp)
     return -1;
-  }
 
   png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
   if (png_ptr == NULL ||
       (png_info_ptr = png_create_info_struct(png_ptr)) == NULL) {
-    std::cerr << "Creating Libpng read/info struct failed." << std::endl;
     if (png_ptr)
       png_destroy_read_struct(&png_ptr, NULL, NULL);
     return -1;
@@ -231,6 +228,11 @@ PNGImage::save (const std::string filename) const
     assert(colorSpaceType == png_colorspace_device);
     break;
   }
+  // Resolution convert ppi to pix-per-meter
+  png_set_pHYs(png_ptr, png_info_ptr,
+               (dpi_x * 10000 + 127) / 254, // add 127 to round to nearest int.
+               (dpi_y * 10000 + 127) / 254,
+               PNG_RESOLUTION_METER);
 
   png_write_info(png_ptr, png_info_ptr);
 
@@ -241,7 +243,7 @@ PNGImage::save (const std::string filename) const
       for (int32_t i = 0; i < getWidth(); i++) {
         Color pixel = getPixel(i, j);
         for (int c = 0; c < getNComps(); c++) {
-          row[getNComps() * i + c] = 255 * ((float) pixel.v[c] / 65535.);
+          row[getNComps() * i + c] = 255 * ((float) pixel.v[c] / 65535.) + .5;
         }
       }
       png_write_row(png_ptr, row);

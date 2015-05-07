@@ -15,6 +15,7 @@ static const char u[] = "\
 usage: resample [-options] input.png output.png\n\
 options:\n\
     -a          keep aspect ratio\n\
+    -r          set resolution (dpi)\n\
     -x xsize    width of output image (in pixels)\n\
     -y ysize    height of output image\n\
     -f filter   filter type\n\
@@ -39,7 +40,7 @@ main (int argc, char *argv[])
 {
   extern int   optind;
   extern char *optarg;
-  int32_t      xsize = 0, ysize = 0;
+  int32_t      xsize = 0, ysize = 0, dpi = 0;
   std::string  filter;
   std::string  dstfile, srcfile;
   bool         keep_aspect = false;
@@ -48,9 +49,10 @@ main (int argc, char *argv[])
   // process command line options.
   {
     int  c;
-    while ((c = getopt(argc, argv, "x:y:af:V")) != EOF) {
+    while ((c = getopt(argc, argv, "r:x:y:af:V")) != EOF) {
       switch(c) {
       case 'a': keep_aspect = true;   break;
+      case 'r': dpi   = atoi(optarg); break;
       case 'x': xsize = atoi(optarg); break;
       case 'y': ysize = atoi(optarg); break;
       case 'f':
@@ -75,7 +77,10 @@ main (int argc, char *argv[])
   dstfile = argv[optind + 1];
 
   PNGImage src(srcfile);
-
+  if (!src.valid()) {
+    std::cerr << "Loading PNG image \"" << srcfile << "\" failed." << std::endl;
+    exit(2);
+  }
   if (xsize > 0 && ysize > 0) {
     if (keep_aspect)
       std::cerr << "Ignoring -a option." << std::endl;
@@ -94,6 +99,11 @@ main (int argc, char *argv[])
   Image ras = resampler.resampleImage(src, xsize, ysize);
   PNGImage dst(ras.getWidth(), ras.getHeight(),
                ras.getNComps(), ras.getBPC(), ras.getPixelBytes());
+  if (dpi > 0)
+    dst.setResolution(dpi, dpi);
+  else { // Copy resolution setting from source image.
+    dst.setResolution(src.getResolutionX(), src.getResolutionY());
+  }
   // Copy colorspace related information
   // There are currently no easy way to copy it.
   {

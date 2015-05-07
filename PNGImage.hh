@@ -18,26 +18,34 @@ class PNGImage : public Image
 public:
   PNGImage(int32_t width, int32_t height, int8_t nComps, int8_t bpc) :
     Image(width, height, nComps, bpc)
-    { colorSpaceType = png_colorspace_device; };
+    {
+      isValid = true; colorSpaceType = png_colorspace_device;
+      dpi_x = dpi_y = 72;
+    };
   PNGImage(int32_t width, int32_t height, int8_t nComps, int8_t bpc,
            const std::string raster) :
       Image(width, height, nComps, bpc, raster)
-    { colorSpaceType = png_colorspace_device; };
+    {
+      isValid = true; colorSpaceType = png_colorspace_device;
+      dpi_x = dpi_y = 72;
+    };
   // Read data from file and construct PNGImage object.
   PNGImage(const std::string filename);
   // Save to file.
-  int save(const std::string filename) const;
+  int  save(const std::string filename) const;
+  // Check if load image succeeded.
+  bool valid() const { return isValid; };
 
   enum png_colorspace_type_e getColorSpaceType() { return colorSpaceType; };
-  bool hasGamma() { return colorSpace.hasGamma; };
+  bool hasGamma() const { return colorSpace.hasGamma; };
 
-  std::string getICCProfileName() { return colorSpace.ICCP.name; };
-  std::vector<unsigned char> getICCProfile()
+  std::string getICCProfileName() const { return colorSpace.ICCP.name; };
+  std::vector<unsigned char> getICCProfile() const
       { return colorSpace.ICCP.profile; };
-  int   getsRGBIntent() { return colorSpace.sRGB; };
-  float getGamma() { return colorSpace.gamma; };
+  int   getsRGBIntent() const { return colorSpace.sRGB; };
+  float getGamma() const { return colorSpace.gamma; };
   // 8 values for whitepoint and matrix
-  std::vector<float> getChromaticity() {
+  std::vector<float> getChromaticity() const {
     std::vector<float> cal(8);
     cal[0] = colorSpace.calRGB.xw;
     cal[1] = colorSpace.calRGB.yw;
@@ -72,7 +80,15 @@ public:
     colorSpace.calRGB.yb = yb;
   }
 
+  float getResolutionX() const { return dpi_x; };
+  float getResolutionY() const { return dpi_y; };
+  void  setResolutionX(float dpi) { dpi_x = dpi; };
+  void  setResolutionY(float dpi) { dpi_y = dpi; };
+  void  setResolution (float x, float y) { dpi_x = x; dpi_y = y; };
+
 private:
+
+  bool isValid;
 
   struct ICCP {
     std::string name;
@@ -92,6 +108,8 @@ private:
   } colorSpace;
 
   enum png_colorspace_type_e colorSpaceType;
+
+  float dpi_x, dpi_y;
 };
 
 #endif // __PNGIMAGE_HH__
